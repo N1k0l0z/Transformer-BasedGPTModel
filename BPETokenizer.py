@@ -1,28 +1,30 @@
 class BPETOKENIZER:
     def __init__(self, train_text_path, vocab_size):
-        self.train_tokens = self.get_tokens(train_text_path)
+        self.train_tokens, self.vocab = self.get_tokens(train_text_path)
         self.vocab_size = vocab_size
-        self.num_merges = vocab_size - 256
+        self.num_merges = vocab_size - len(set(self.train_tokens))
         self.ids = list(self.train_tokens)
-        self.merges = {}
-        self.vocab = None
+        self.merges = {}  
 
-    def get_tokens(self, train_text_path):
+    def get_tokens(self, train_text_path = 'C:\\Users\\NiKordzakhia\\Desktop\\Transformer-BasedGPTModel\\vefxistyaosani.txt'):
+        """Reads text and assigns unique token IDs to characters."""
         with open(train_text_path, 'r', encoding='utf-8') as f:
             train_text = f.read()
-        train_tokens = train_text.encode('utf-8')
-        train_tokens = list(map(int, train_tokens))
-        return train_tokens
+
+        chars = sorted(set(train_text))
+        stoi = {ch: i for i, ch in enumerate(chars)} 
+
+        train_tokens = [stoi[c] for c in train_text]  
+        vocab = {idx: char for idx, char in stoi.items()}  
+        return train_tokens, vocab
 
     def get_stats(self, ids):
-        """gets ids and returns dictionary where keys are all pairs and values amount of each pair."""
         counts = {}
         for pair in zip(ids, ids[1:]):
             counts[pair] = counts.get(pair, 0) + 1
         return counts
 
     def merge(self, ids, pair, idx):
-        """gets ids which are token ids, pair which is pair with highest frequency and idx by which this pair will be replaced."""
         newids = []
         i = 0
         while i < len(ids):
@@ -34,20 +36,26 @@ class BPETOKENIZER:
                 i += 1
         return newids
 
-    def get_vocab(self):
-        if self.vocab is None:
-            self.vocab = {idx: bytes([idx]) for idx in range(256)}
-            for (p0, p1), idx in self.merges.items():
-                self.vocab[idx] = self.vocab[p0] + self.vocab[p1]
-        return self.vocab
-
     def decode(self, ids):
-        vocab = self.get_vocab()
-        tokens = b"".join(vocab[idx] for idx in ids)
-        return tokens.decode('utf-8', errors='replace')
+        reverse_merges = {v: k for k, v in self.merges.items()}  
+        reverse_vocab = {v: k for k, v in self.vocab.items()}  
+        
+        while any(id_ in reverse_merges for id_ in ids):
+            new_ids = []
+            for id_ in ids:
+                if id_ in reverse_merges:  
+                    new_ids.extend(reverse_merges[id_])  
+                else:
+                    new_ids.append(id_)  
+            ids = new_ids  
+
+        decoded = [reverse_vocab.get(i, f"[UNK:{i}]") for i in ids]  
+        return "".join(decoded)  
 
     def encode(self, text):
-        tokens = list(text.encode('utf-8'))
+        tokens = []
+        for i in text:
+            tokens.append(self.vocab.get(i))
         while len(tokens) >= 2:
             stats = self.get_stats(tokens)
             pair = min(stats, key=lambda p: self.merges.get(p, float('inf')))
@@ -62,8 +70,7 @@ class BPETOKENIZER:
         for i in range(self.num_merges):
             stats = self.get_stats(self.ids)
             pair = max(stats, key=stats.get)
-            idx = 256 + i
+            idx = len(set(self.train_tokens)) + i
             print(f"Merging {pair} into a new token {idx}")
             self.ids = self.merge(self.ids, pair, idx)
             self.merges[pair] = idx
-        
