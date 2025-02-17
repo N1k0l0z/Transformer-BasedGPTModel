@@ -64,8 +64,8 @@ class BPETOKENIZER:
 
     def decode(self, ids):
         """Convert token IDs back to text, handling multi-byte characters and characters not in vocab."""
-        reverse_merges = {v: k for k, v in self.merges.items()} # {293: (32, 267), 294: (273, 256), 295: (259, 256), 296: (256, 272), 297: (32, 295), 298: (256, 268), 299: (261, 264)}
-        reverse_vocab = {v: k for k, v in self.vocab.items()} # {0: '\x00', 1: '\x01', 2: '\x02', 3: '\x03', 4: '\x04', 5: '\x05', 6: '\x06'
+        reverse_merges = {v: k for k, v in self.merges.items()}
+        reverse_vocab = {v: k for k, v in self.vocab.items()} 
 
         while any(id_ in reverse_merges for id_ in ids):
             new_ids = []
