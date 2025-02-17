@@ -26,10 +26,18 @@ class BPETOKENIZER:
 
         train_tokens = [stoi[c] for c in train_text]
 
-        train_tokens.insert(0, (vocab.get(' ')))
 
         reg_chars = re.findall(pat, train_text)
-        self.reg_tokens = [[stoi[token] for token in i if token in stoi] for i in reg_chars]
+        self.reg_tokens_ = [[stoi[token] for token in i if token in stoi] for i in reg_chars]
+
+        self.reg_tokens = []
+        for i in self.reg_tokens_:
+            if len(i) > 1 and i[0] != vocab.get(' ') and i[0] != vocab.get('  '):
+                i.insert(0, vocab.get(' '))
+                self.reg_tokens.append(i)
+            else:
+                self.reg_tokens.append(i)
+            
         return train_tokens, vocab
     
     def get_stats(self, ids):
@@ -103,6 +111,7 @@ class BPETOKENIZER:
     def train(self):
         self.merges = {}
         for i in range(self.num_merges):
+
             stats = self.get_stats(self.reg_tokens)
         
             pair = max(stats, key=stats.get)
@@ -115,5 +124,4 @@ class BPETOKENIZER:
 
             for j in range(len(self.reg_tokens)):
                 self.reg_tokens[j] = self.merge(self.reg_tokens[j], pair, idx)
-
             self.merges[pair] = idx
