@@ -6,14 +6,13 @@ batch_size = 64
 block_size = 256 # maximum number of tokens the model can use as input at once when making predictions.
 max_iters = 5000
 eval_interval = 500
-learning_rate = 3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
-n_embd = 32
-n_head = 2
-n_layer = 6
+n_embd = 256
+n_head = 16
+n_layer = 12
 dropout = 0.2
-vocab_size = 10000
+vocab_size = 7000
 
 
 class Head(nn.Module):
@@ -31,7 +30,7 @@ class Head(nn.Module):
         k = self.key(x)   
         q = self.query(x) 
         wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # it fills the values of the tensor at positions where the mask is True with the specified value.
+        wei = wei.masked_fill(self.tril[:T,:T] == 0, float('-inf')) # it fills the values of the tensor at positions where the mask is True with the specified value.
         wei = F.softmax(wei, dim=-1) 
         wei = self.dropout(wei)
         v = self.value(x) 
@@ -140,7 +139,3 @@ class GPTLanguageModel(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1) 
             idx = torch.cat((idx, idx_next), dim=1) 
         return idx
-
-model = GPTLanguageModel()
-x = torch.ones(size=(8, 256)).long()
-model(x, x)
