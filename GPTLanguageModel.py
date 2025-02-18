@@ -13,14 +13,12 @@ n_embd = 32
 n_head = 2
 n_layer = 6
 dropout = 0.2
-vocab_size = 49
-
-
+vocab_size = 10000
 
 
 class Head(nn.Module):
     """ one head of self-attention """
-    def __init__(self, head_size):
+    def __init__(self, head_size): # head_size = output dimension of attention matrices for each index
         super().__init__()
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
@@ -33,7 +31,7 @@ class Head(nn.Module):
         k = self.key(x)   
         q = self.query(x) 
         wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # it fills the values of the tensor at positions where the mask is True with the specified value.
         wei = F.softmax(wei, dim=-1) 
         wei = self.dropout(wei)
         v = self.value(x) 
@@ -67,21 +65,6 @@ class FeedFoward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class Block(nn.Module):
-    """ Transformer block: communication followed by computation """
-    def __init__(self, n_embd, n_head):
-        super().__init__()
-        head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_head, head_size)
-        self.ffwd = FeedFoward(n_embd)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
-
-    def forward(self, x):
-        x = x + self.sa(self.ln1(x))
-        x = x + self.ffwd(self.ln2(x))
-        return x
-
 class LayerNorm(nn.Module):
     def __init__(self, dim, eps=1e-5):
         super().__init__()
@@ -95,7 +78,22 @@ class LayerNorm(nn.Module):
 
         x_hat = (x - mean) / torch.sqrt(var + self.eps)
         return self.gamma * x_hat + self.beta      
-        
+
+class Block(nn.Module):
+    """ Transformer block: communication followed by computation """
+    def __init__(self, n_embd, n_head):
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_head, head_size)
+        self.ffwd = FeedFoward(n_embd)
+        self.ln1 = LayerNorm(n_embd)
+        self.ln2 = LayerNorm(n_embd)
+
+    def forward(self, x):
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+        return x
+
 class GPTLanguageModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -142,3 +140,7 @@ class GPTLanguageModel(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1) 
             idx = torch.cat((idx, idx_next), dim=1) 
         return idx
+
+model = GPTLanguageModel()
+x = torch.ones(size=(8, 256)).long()
+model(x, x)
